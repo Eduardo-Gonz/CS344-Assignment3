@@ -19,17 +19,32 @@ int ignoreCmd(char *usrCmd) {
     return 0;
 }
 
+
 void parseCmd(char *usrCmd, char *cmdArgs[]) {
     char *token;
     char *savePtr = usrCmd;
     int i = 0;
 
     while((token = strtok_r(savePtr, " ", &savePtr))) {
+        //remove trailing 'new line' character
+        token[strcspn(token, "\n")] = 0;
+        //store the argument in array
         cmdArgs[i] = token;
-        printf("%s", cmdArgs[i]);
-
         i++;
     }
+}
+
+int isThreeCmds(char *cmdArgs[]) {
+    if(strcmp(cmdArgs[0], "cd") == 0)
+        printf("change directory!");
+    else if(strcmp(cmdArgs[0], "status") == 0)
+        printf("show status!");
+    else if(strcmp(cmdArgs[0], "exit") == 0)
+        printf("exit!");
+    else
+        return 0;
+
+    return 1;
 }
 
 void createCmdLine() {
@@ -49,6 +64,8 @@ void createCmdLine() {
             exit ++;
 
         parseCmd(cmd, args);
+        if(!isThreeCmds(args))
+            printf("\nnot a built in command");
 
         //make a process and call execvp()
     }while(exit < 1);
