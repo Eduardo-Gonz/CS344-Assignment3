@@ -34,9 +34,31 @@ void parseCmd(char *usrCmd, char *cmdArgs[]) {
     }
 }
 
+void changeDir(char *dirPath) {
+    char s[100];
+    printf("%s\n", getcwd(s, 100));
+    if(chdir(dirPath) == -1){
+        perror("Error: ");
+    }
+    else
+        printf("%s\n", getcwd(s, 100));
+
+    fflush(stdout);
+}
+
+void handleCd(char *cmdArgs[]) {
+    char *path;
+    if(cmdArgs[1] == NULL)
+        path = getenv("HOME");
+    else
+        path = cmdArgs[1];
+
+    changeDir(path);
+}
+
 int isThreeCmds(char *cmdArgs[]) {
     if(strcmp(cmdArgs[0], "cd") == 0)
-        printf("change directory!");
+        handleCd(cmdArgs);
     else if(strcmp(cmdArgs[0], "status") == 0)
         printf("show status!");
     else if(strcmp(cmdArgs[0], "exit") == 0)
@@ -49,7 +71,7 @@ int isThreeCmds(char *cmdArgs[]) {
 
 void createCmdLine() {
     char cmd [2049];
-    char *args [513];
+    char *args [513] = {NULL};
     int exit = 0;
 
     do{
