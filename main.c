@@ -2,11 +2,14 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <signal.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <sys/wait.h>
 #include <time.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <errno.h>
 
 int ignoreCmd(char *usrCmd) {
     char firstChar = usrCmd[0];
@@ -15,10 +18,8 @@ int ignoreCmd(char *usrCmd) {
         return 1;
     }
     
-
     return 0;
 }
-
 
 void parseCmd(char *usrCmd, char *cmdArgs[]) {
     char *token;
@@ -35,15 +36,10 @@ void parseCmd(char *usrCmd, char *cmdArgs[]) {
 }
 
 void changeDir(char *dirPath) {
-    char s[100];
-    printf("%s\n", getcwd(s, 100));
     if(chdir(dirPath) == -1){
         perror("Error: ");
+        fflush(stdout);
     }
-    else
-        printf("%s\n", getcwd(s, 100));
-
-    fflush(stdout);
 }
 
 void handleCd(char *cmdArgs[]) {
@@ -56,13 +52,32 @@ void handleCd(char *cmdArgs[]) {
     changeDir(path);
 }
 
-int isThreeCmds(char *cmdArgs[]) {
+void exitPrgm(int *pids[], int exitFlg) {
+    int i = 0;
+    while(pids[i] != NULL) {
+        int killValue = kill(*pids[i], SIGTERM);
+        if(killValue == -1 && errno == ESRCH)
+            continue;
+        else{
+            perror("ERROR: ");
+            exit(EXIT_FAILURE);
+        }
+        i++;
+    }
+
+    printf("Exiting!");
+
+    exitFlg++;
+    exit(EXIT_SUCCESS);
+}
+
+int isThreeCmds(char *cmdArgs[], int *pids[], int exitFlg) {
     if(strcmp(cmdArgs[0], "cd") == 0)
         handleCd(cmdArgs);
     else if(strcmp(cmdArgs[0], "status") == 0)
         printf("show status!");
     else if(strcmp(cmdArgs[0], "exit") == 0)
-        printf("exit!");
+        exitPrgm(pids, exitFlg);
     else
         return 0;
 
@@ -73,6 +88,7 @@ void createCmdLine() {
     char cmd [2049];
     char *args [513] = {NULL};
     int exit = 0;
+    int *pidArr [200] = {NULL};
 
     do{
         printf(": ");
@@ -82,18 +98,18 @@ void createCmdLine() {
         //check for blank lines or comments
         if(ignoreCmd(cmd))
             continue;
-        else
-            exit ++;
 
         parseCmd(cmd, args);
-        if(!isThreeCmds(args))
+
+        //isCdCmd()
+        //isExitCmd();
+        if(!isThreeCmds(args, pidArr, exit))
             printf("\nnot a built in command");
 
         //make a process and call execvp()
     }while(exit < 1);
 
 }
-
 
 int main()
 {
