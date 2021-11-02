@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-int ignoreCmd(char usrCmd []) {
+int ignoreCmd(char *usrCmd) {
     char firstChar = usrCmd[0];
     if(firstChar == '#' || strcmp(usrCmd, "\n") == 0){
         printf("Sorry, blank lines and comments are ignored\n");
@@ -19,9 +19,22 @@ int ignoreCmd(char usrCmd []) {
     return 0;
 }
 
+void parseCmd(char *usrCmd, char *cmdArgs[]) {
+    char *token;
+    char *savePtr = usrCmd;
+    int i = 0;
+
+    while((token = strtok_r(savePtr, " ", &savePtr))) {
+        cmdArgs[i] = token;
+        printf("%s", cmdArgs[i]);
+
+        i++;
+    }
+}
+
 void createCmdLine() {
     char cmd [2049];
-    char args [513];
+    char *args [513];
     int exit = 0;
 
     do{
@@ -35,7 +48,8 @@ void createCmdLine() {
         else
             exit ++;
 
-        //check for three commands
+        parseCmd(cmd, args);
+
         //make a process and call execvp()
     }while(exit < 1);
 
