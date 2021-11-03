@@ -94,10 +94,22 @@ int findLength(char *args[]) {
     return length; 
 }
 
+int findNumOfPids(int *pids[]) {
+    int i = 0;
+    while(pids[i] != NULL) {
+        i++;
+    }
+
+    int length = i - 1;
+    return length; 
+}
+
 int isBackground(char *cmdArgs[], int lastArg) {
     lastArg--;
-    if(strcmp(cmdArgs[lastArg], "&") == 0)
+    if(strcmp(cmdArgs[lastArg], "&") == 0){
+        cmdArgs[lastArg] = NULL;
         return 1;
+    }
 
     return 0;
 }
@@ -111,30 +123,38 @@ void copyToExec(char *execArgs[], char *cmdArgs[], int length) {
 
 void forkCmds(char *cmdArgs[], int *pids[], int *exitStatus) {
     int length = findLength(cmdArgs);
+    int numOfPids = findNumOfPids(pids);
     int bckgrndMode = isBackground(cmdArgs, length);
     char *execArgs [length];
     copyToExec(execArgs, cmdArgs, length);
 
-    int childProcess = 0;
     int childStatus;
 
 	// Fork a new process
 	pid_t spawnPid = fork();
+    pids[numOfPids] = &spawnPid;
 	switch(spawnPid){
         case -1:
             perror("fork()\n");
             exit(1);
             break;
         case 0:
+            //Childs Process
             *exitStatus = execvp(execArgs[0], execArgs);
-            // exec only returns if there is an error
             perror("execvp: ");
-            exit(2);
             break;
         default:
             // In the parent process
-            // Wait for child's termination
-            spawnPid = waitpid(spawnPid, &childStatus, 0);
+            if(bckgrndMode){
+                printf("background pid is %d\n", spawnPid);
+                spawnPid = waitpid(spawnPid, &childStatus, WNOHANG);
+                fflush(stdout);
+            } 
+            else{
+                spawnPid = waitpid(spawnPid, &childStatus, 0);
+                if(WIFEXITED(childStatus))
+                    *exitStatus = WIFEXITED(childStatus);
+            }
             break;
 	} 
     
@@ -174,7 +194,6 @@ void createCmdLine() {
 
         //check processes
 
-        //make a process and call execvp()
     }while(exit < 1);
 
 }
