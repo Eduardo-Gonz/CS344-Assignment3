@@ -65,8 +65,6 @@ void exitPrgm(int *pids[]) {
         i++;
     }
 
-    printf("Exiting!");
-
     exit(EXIT_SUCCESS);
 }
 
@@ -87,6 +85,66 @@ int isThreeCmds(char *cmdArgs[], int *pids[], int *exitStatus) {
     return 1;
 }
 
+int findLength(char *args[]) {
+    int i = 0;
+    while(args[i] != NULL) {
+        i++;
+    }
+    int length = i + 1;
+
+    return length; 
+}
+
+int isBackground(char *cmdArgs[], int lastArg) {
+    if(strcmp(cmdArgs[lastArg], "&") == 0)
+        return 1;
+
+    return 0;
+}
+
+void copyToExec(char *execArgs[], char *cmdArgs[], int length) {
+    for(int i = 0; i < length; i++) {
+        execArgs[i] = cmdArgs[i];
+    }
+}
+
+void forkCmds(char *cmdArgs[], int *pids[], int *exitStatus) {
+    int length = findLength(cmdArgs);
+    int bckgrndMode = isBackground(cmdArgs, length);
+    char *execArgs [length];
+    copyToExec(execArgs, cmdArgs, length);
+
+    int childProcess = 0;
+    int childStatus;
+
+	// Fork a new process
+	pid_t spawnPid = fork();
+
+	switch(spawnPid){
+        case -1:
+            perror("fork()\n");
+            exit(1);
+            break;
+        case 0:
+            // In the child process
+            printf("CHILD(%d) running command\n", getpid());
+            // Replace the current program with "/bin/ls"
+            *exitStatus = execvp(execArgs[0], execArgs);
+            // exec only returns if there is an error
+            perror("execvp: ");
+            exit(2);
+            break;
+        default:
+            // In the parent process
+            // Wait for child's termination
+            spawnPid = waitpid(spawnPid, &childStatus, 0);
+            printf("PARENT(%d): child(%d) terminated. Exiting\n", getpid(), spawnPid);
+            exit(0);
+            break;
+	} 
+    
+}
+
 void createCmdLine() {
     char cmd [2049];
     char *args [513] = {NULL};
@@ -105,8 +163,11 @@ void createCmdLine() {
 
         parseCmd(cmd, args);
 
-        if(!isThreeCmds(args, pidArr, &exitStatus))
-            printf("\nnot a built in command");
+        if(!isThreeCmds(args, pidArr, &exitStatus)) {
+            forkCmds(args, pidArr, &exitStatus);
+        }
+
+        //check processes
 
         //make a process and call execvp()
     }while(exit < 1);
