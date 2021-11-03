@@ -15,6 +15,7 @@ int ignoreCmd(char *usrCmd) {
     char firstChar = usrCmd[0];
     if(firstChar == '#' || strcmp(usrCmd, "\n") == 0){
         printf("Sorry, blank lines and comments are ignored\n");
+        fflush(stdout);
         return 1;
     }
     
@@ -60,6 +61,7 @@ void exitPrgm(int *pids[]) {
             continue;
         else{
             perror("ERROR: ");
+            fflush(stdout);
             exit(EXIT_FAILURE);
         }
         i++;
@@ -142,6 +144,7 @@ void forkCmds(char *cmdArgs[], int *pids[], int *exitStatus) {
             //Childs Process
             *exitStatus = execvp(execArgs[0], execArgs);
             perror("execvp: ");
+            fflush(stdout);
             break;
         default:
             // In the parent process
