@@ -90,12 +90,12 @@ int findLength(char *args[]) {
     while(args[i] != NULL) {
         i++;
     }
-    int length = i + 1;
-
+    int length = i;
     return length; 
 }
 
 int isBackground(char *cmdArgs[], int lastArg) {
+    lastArg--;
     if(strcmp(cmdArgs[lastArg], "&") == 0)
         return 1;
 
@@ -106,6 +106,7 @@ void copyToExec(char *execArgs[], char *cmdArgs[], int length) {
     for(int i = 0; i < length; i++) {
         execArgs[i] = cmdArgs[i];
     }
+    execArgs[length] = NULL;
 }
 
 void forkCmds(char *cmdArgs[], int *pids[], int *exitStatus) {
@@ -119,7 +120,6 @@ void forkCmds(char *cmdArgs[], int *pids[], int *exitStatus) {
 
 	// Fork a new process
 	pid_t spawnPid = fork();
-
 	switch(spawnPid){
         case -1:
             perror("fork()\n");
@@ -129,6 +129,7 @@ void forkCmds(char *cmdArgs[], int *pids[], int *exitStatus) {
             // In the child process
             printf("CHILD(%d) running command\n", getpid());
             // Replace the current program with "/bin/ls"
+
             *exitStatus = execvp(execArgs[0], execArgs);
             // exec only returns if there is an error
             perror("execvp: ");
@@ -139,7 +140,6 @@ void forkCmds(char *cmdArgs[], int *pids[], int *exitStatus) {
             // Wait for child's termination
             spawnPid = waitpid(spawnPid, &childStatus, 0);
             printf("PARENT(%d): child(%d) terminated. Exiting\n", getpid(), spawnPid);
-            exit(0);
             break;
 	} 
     
