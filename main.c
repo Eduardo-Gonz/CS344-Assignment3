@@ -132,18 +132,18 @@ int isRedirect(char *cmdArgs[], int length) {
     return 0;
 }
 
-char * getIO(char *cmdArgs[], int length, char symbol) {
-    char *fileName;
+char * getIO(char *cmdArgs[], int length, char *symbol) {
+    char *defaultName = "/dev/null";
     for(int i = 0; i < length; i++) {
-        if(strcmp(cmdArgs[i], &symbol) == 0)
-            fileName = cmdArgs[++i];
+        if(strcmp(cmdArgs[i], symbol) == 0){
+	   return cmdArgs[++i];
+	}
     }
 
-    return fileName;
+    return defaultName;
 }
 
 void redirectIO(char *input, char*output){
-
     //use dup2 to redirect input
 	int inputFD = open(input, O_RDONLY);
 	if (inputFD == -1) {
@@ -187,19 +187,19 @@ void forkCmds(char *cmdArgs[], int *pids[], int *exitStatus) {
     int bckgrndMode = isBackground(cmdArgs, length);
     int childStatus, redirect;
     char *execArgs [length];
-    char *outputFile, *inputFile = NULL;
-    copyToExec(execArgs, cmdArgs, length);
+    char *outputFile, *inputFile;
 
     //Set up Redirection if needed
     redirect = isRedirect(cmdArgs, length);
     if(redirect){
-        inputFile = getIO(cmdArgs, length, '<');
-        outputFile = getIO(cmdArgs, length, '>');
+        inputFile = getIO(cmdArgs, length, "<");
+        outputFile = getIO(cmdArgs, length, ">");
         redirectIO(inputFile, outputFile);
         backgroundIO(inputFile, outputFile, bckgrndMode);
         modifyArgsIO(cmdArgs, length);
     }
-
+    copyToExec(execArgs, cmdArgs, length);
+    printf("%s", inputFile);
 
 	// Fork a new process
 	pid_t spawnPid = fork();
