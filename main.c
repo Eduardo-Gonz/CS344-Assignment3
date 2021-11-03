@@ -123,14 +123,83 @@ void copyToExec(char *execArgs[], char *cmdArgs[], int length) {
     execArgs[length] = NULL;
 }
 
+int isRedirect(char *cmdArgs[], int length) {
+    for(int i = 0; i < length; i++) {
+        if(strcmp(cmdArgs[i], "<") == 0 || strcmp(cmdArgs[i], ">") == 0)
+            return 1;
+    }
+
+    return 0;
+}
+
+char * getIO(char *cmdArgs[], int length, char symbol) {
+    char *fileName;
+    for(int i = 0; i < length; i++) {
+        if(strcmp(cmdArgs[i], &symbol) == 0)
+            fileName = cmdArgs[++i];
+    }
+
+    return fileName;
+}
+
+void redirectIO(char *input, char*output){
+
+    //use dup2 to redirect input
+	int inputFD = open(input, O_RDONLY);
+	if (inputFD == -1) {
+		perror("open()");
+	}
+    int fdStatus = dup2(inputFD, 0);
+
+	if (fdStatus == -1) {
+		perror("error: ");
+	}
+
+	// Use dup2 to redirect output
+    int outputFD = open(output, O_WRONLY | O_TRUNC | O_CREAT, 0644);
+	if (outputFD == -1) {
+		perror("dup2"); 
+	}
+    fdStatus = dup2(outputFD, 1);
+    if (fdStatus == -1) {
+	    perror("error: ");
+	}
+}
+
+void backgroundIO(char *input, char *output, int background) {
+    if(background && output == NULL) {
+        output = "/dev/null";
+    }
+    if(background && input == NULL) {
+        input = "/dev/null";
+    }
+}
+
+void modifyArgsIO(char *cmdArgs[], int length) {
+    for(int i = 1; i < length; i++) {
+        cmdArgs[i] = NULL;
+    }
+}
+
 void forkCmds(char *cmdArgs[], int *pids[], int *exitStatus) {
     int length = findLength(cmdArgs);
     int numOfPids = findNumOfPids(pids);
     int bckgrndMode = isBackground(cmdArgs, length);
+    int childStatus, redirect;
     char *execArgs [length];
+    char *outputFile, *inputFile = NULL;
     copyToExec(execArgs, cmdArgs, length);
 
-    int childStatus;
+    //Set up Redirection if needed
+    redirect = isRedirect(cmdArgs, length);
+    if(redirect){
+        inputFile = getIO(cmdArgs, length, '<');
+        outputFile = getIO(cmdArgs, length, '>');
+        redirectIO(inputFile, outputFile);
+        backgroundIO(inputFile, outputFile, bckgrndMode);
+        modifyArgsIO(cmdArgs, length);
+    }
+
 
 	// Fork a new process
 	pid_t spawnPid = fork();
