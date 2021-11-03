@@ -134,7 +134,6 @@ void forkCmds(char *cmdArgs[], int *pids[], int *exitStatus) {
 
 	// Fork a new process
 	pid_t spawnPid = fork();
-    pids[numOfPids] = &spawnPid;
 	switch(spawnPid){
         case -1:
             perror("fork()\n");
@@ -143,12 +142,14 @@ void forkCmds(char *cmdArgs[], int *pids[], int *exitStatus) {
         case 0:
             //Childs Process
             *exitStatus = execvp(execArgs[0], execArgs);
-            perror("execvp: ");
-            fflush(stdout);
-            break;
+	    if(*exitStatus == -1){
+	    	perror("execvp: ");
+		exit(EXIT_FAILURE);
+	    }
         default:
             // In the parent process
             if(bckgrndMode){
+	        pids[numOfPids] = &spawnPid;
                 printf("background pid is %d\n", spawnPid);
                 spawnPid = waitpid(spawnPid, &childStatus, WNOHANG);
                 fflush(stdout);
@@ -170,6 +171,8 @@ void clearArgs(char *args[]) {
         i++;
     }
 }
+
+//void checkProcesses(char
 
 void createCmdLine() {
     char cmd [2049];
