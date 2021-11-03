@@ -126,10 +126,6 @@ void forkCmds(char *cmdArgs[], int *pids[], int *exitStatus) {
             exit(1);
             break;
         case 0:
-            // In the child process
-            printf("CHILD(%d) running command\n", getpid());
-            // Replace the current program with "/bin/ls"
-
             *exitStatus = execvp(execArgs[0], execArgs);
             // exec only returns if there is an error
             perror("execvp: ");
@@ -139,10 +135,17 @@ void forkCmds(char *cmdArgs[], int *pids[], int *exitStatus) {
             // In the parent process
             // Wait for child's termination
             spawnPid = waitpid(spawnPid, &childStatus, 0);
-            printf("PARENT(%d): child(%d) terminated. Exiting\n", getpid(), spawnPid);
             break;
 	} 
     
+}
+
+void clearArgs(char *args[]) {
+    int i = 0;
+    while(args[i] != NULL) {
+        args[i] = NULL;
+        i++;
+    }
 }
 
 void createCmdLine() {
@@ -166,6 +169,8 @@ void createCmdLine() {
         if(!isThreeCmds(args, pidArr, &exitStatus)) {
             forkCmds(args, pidArr, &exitStatus);
         }
+
+        clearArgs(args);
 
         //check processes
 
