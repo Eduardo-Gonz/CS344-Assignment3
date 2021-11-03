@@ -144,25 +144,30 @@ char * getIO(char *cmdArgs[], int length, char *symbol) {
 }
 
 void redirectIO(char *input, char*output){
+   	int fdStatus;
     //use dup2 to redirect input
+    	if(input != NULL){
 	int inputFD = open(input, O_RDONLY);
 	if (inputFD == -1) {
-		perror("open()");
+	perror("open()");
 	}
-    int fdStatus = dup2(inputFD, 0);
+    	fdStatus = dup2(inputFD, 0);
 
 	if (fdStatus == -1) {
-		perror("error: ");
+			perror("error: ");
+	}		
 	}
 
 	// Use dup2 to redirect output
-    int outputFD = open(output, O_WRONLY | O_TRUNC | O_CREAT, 0644);
+	if(output != NULL){
+	int outputFD = open(output, O_WRONLY | O_TRUNC | O_CREAT, 0644);
 	if (outputFD == -1) {
 		perror("dup2"); 
 	}
-    fdStatus = dup2(outputFD, 1);
-    if (fdStatus == -1) {
+    	fdStatus = dup2(outputFD, 1);
+    	if (fdStatus == -1) {
 	    perror("error: ");
+	}
 	}
 }
 
@@ -194,12 +199,11 @@ void forkCmds(char *cmdArgs[], int *pids[], int *exitStatus) {
     if(redirect){
         inputFile = getIO(cmdArgs, length, "<");
         outputFile = getIO(cmdArgs, length, ">");
+	backgroundIO(inputFile, outputFile, bckgrndMode);
         redirectIO(inputFile, outputFile);
-        backgroundIO(inputFile, outputFile, bckgrndMode);
         modifyArgsIO(cmdArgs, length);
     }
     copyToExec(execArgs, cmdArgs, length);
-    printf("%s", inputFile);
 
 	// Fork a new process
 	pid_t spawnPid = fork();
