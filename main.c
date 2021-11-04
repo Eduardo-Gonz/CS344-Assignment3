@@ -216,6 +216,13 @@ void modifyArgsIO(char *cmdArgs[], int length) {
     }
 }
 
+void handle_SIGINT(int signo) {
+    char message [50];
+    sprintf(message, "terminated by signal %d\n", signo);
+	write(STDOUT_FILENO, message, 50);
+	exit(0);
+}
+
 void forkCmds(char *cmdArgs[], int *pids, int *exitStatus) {
     int length = findLength(cmdArgs);
     int numOfPids = findNumOfPids(pids);
@@ -237,6 +244,7 @@ void forkCmds(char *cmdArgs[], int *pids, int *exitStatus) {
     }
     copyToExec(execArgs, cmdArgs, length);
 
+    struct sigaction SIGINT_action = {0};
 	// Fork a new process
 	pid_t spawnPid = fork();
 	switch(spawnPid){
@@ -246,6 +254,10 @@ void forkCmds(char *cmdArgs[], int *pids, int *exitStatus) {
             break;
         case 0:
             //Childs Process
+            SIGINT_action.sa_handler = handle_SIGINT; 
+            sigfillset(&SIGINT_action.sa_mask);
+            SIGINT_action.sa_flags = 0;
+            sigaction(SIGINT, &SIGINT_action, NULL);
             if(redirect)
                 redirectIO(inputFile, outputFile);
             *exitStatus = execvp(execArgs[0], execArgs);
@@ -307,6 +319,10 @@ void createCmdLine() {
     int exit = 0;
     int pidArr [200] = {0};
     int exitStatus = 0;
+    // parent
+    struct sigaction ignore_action = {0};
+    ignore_action.sa_handler = SIG_IGN;
+    sigaction(SIGINT, &ignore_action, NULL);
 
     do{
         printf(": ");
@@ -334,6 +350,7 @@ void createCmdLine() {
 
 int main()
 {
+
     createCmdLine();
 
     return EXIT_SUCCESS;
