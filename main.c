@@ -123,7 +123,9 @@ void copyToExec(char *execArgs[], char *cmdArgs[], int length) {
     execArgs[length] = NULL;
 }
 
-int isRedirect(char *cmdArgs[], int length) {
+int isRedirect(char *cmdArgs[], int length, int background) {
+    if(background)
+        length--;
     for(int i = 0; i < length; i++) {
         if(strcmp(cmdArgs[i], "<") == 0 || strcmp(cmdArgs[i], ">") == 0)
             return 1;
@@ -158,16 +160,6 @@ char * backgroundOutput(char *output, int background) {
 
     return NULL;
 }
-//segfaulting
-// void backgroundIO(char *input, char *output, int background) {
-//     char *defaultName = "/dev/null";
-//     if(background && output == NULL) {
-//         output = defaultName;
-//     }
-//     if(background && input == NULL) {
-        
-//     }
-// }
 
 void redirectIO(char *input, char*output){
    	int fdStatus;
@@ -214,7 +206,7 @@ void forkCmds(char *cmdArgs[], int *pids[], int *exitStatus) {
     char *outputFile, *inputFile;
 
     //Set up Redirection if needed
-    redirect = isRedirect(cmdArgs, length);
+    redirect = isRedirect(cmdArgs, length, bckgrndMode);
     if(redirect){
         inputFile = getIO(cmdArgs, "<");
         outputFile = getIO(cmdArgs, ">");
@@ -245,7 +237,7 @@ void forkCmds(char *cmdArgs[], int *pids[], int *exitStatus) {
         default:
             // In the parent process
             if(bckgrndMode){
-	        pids[numOfPids] = &spawnPid;
+	            pids[numOfPids] = &spawnPid;
                 printf("background pid is %d\n", spawnPid);
                 fflush(stdout);
                 spawnPid = waitpid(spawnPid, &childStatus, WNOHANG);
