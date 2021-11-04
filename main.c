@@ -260,7 +260,26 @@ void clearArgs(char *args[]) {
     }
 }
 
-//void checkProcesses(char
+void checkProcesses(int *pids[]) {
+    pid_t bgPid = -1;
+    int bgExitStatus;
+    int i = 0;
+    while(pids[i] != NULL) {
+        if(waitpid(*pids[i], &bgExitStatus, WNOHANG) > 0) {
+            if(WIFSIGNALED(bgExitStatus)) {
+                printf("background pid terminated is %d\n", *pids[i]);
+                fflush(stdout);
+                printf("terminated by signal %d\n", WTERMSIG(bgExitStatus));
+                fflush(stdout);
+            }
+            if(WIFEXITED(bgExitStatus)){
+              printf("exit value %d\n", WEXITSTATUS(bgExitStatus));
+              fflush(stdout);
+            }
+        }
+        i++;
+    }
+}
 
 void createCmdLine() {
     char cmd [2049];
@@ -286,7 +305,7 @@ void createCmdLine() {
 
         clearArgs(args);
 
-        //check processes
+        checkProcesses(pidArr);
 
     }while(exit < 1);
 
