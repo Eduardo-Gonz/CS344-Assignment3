@@ -132,52 +132,71 @@ int isRedirect(char *cmdArgs[], int length) {
     return 0;
 }
 
-char * getIO(char *cmdArgs[], int length, char *symbol) {
-    char *defaultName = "/dev/null";
-    for(int i = 0; i < length; i++) {
+char * getIO(char *cmdArgs[], char *symbol) {
+    int i = 0; 
+    while(cmdArgs[i] != NULL) {
         if(strcmp(cmdArgs[i], symbol) == 0){
-	   return cmdArgs[++i];
-	}
+	        return cmdArgs[++i];
+	    }
+        i++;
     }
 
-    return defaultName;
+    return NULL;
 }
+
+char * backgroundInput(char *input, int background) {
+    char *defaultName = "/dev/null";
+    if(background && input == NULL)
+        return defaultName;
+
+    return NULL;
+}
+char * backgroundOutput(char *output, int background) {
+    char *defaultName = "/dev/null";
+    if(background && output == NULL)
+        return defaultName;
+
+    return NULL;
+}
+//segfaulting
+// void backgroundIO(char *input, char *output, int background) {
+//     char *defaultName = "/dev/null";
+//     if(background && output == NULL) {
+//         output = defaultName;
+//     }
+//     if(background && input == NULL) {
+        
+//     }
+// }
 
 void redirectIO(char *input, char*output){
    	int fdStatus;
     //use dup2 to redirect input
-    	if(input != NULL){
-	int inputFD = open(input, O_RDONLY);
-	if (inputFD == -1) {
-	perror("open()");
-	}
+    if(input != NULL){
+	    int inputFD = open(input, O_RDONLY);
+	    if (inputFD == -1) {
+	        perror("open()");
+            exit(EXIT_FAILURE);
+	    }
     	fdStatus = dup2(inputFD, 0);
 
-	if (fdStatus == -1) {
-			perror("error: ");
-	}		
+        if (fdStatus == -1) {
+            perror("error: ");
+        }		
 	}
 
 	// Use dup2 to redirect output
 	if(output != NULL){
-	int outputFD = open(output, O_WRONLY | O_TRUNC | O_CREAT, 0644);
-	if (outputFD == -1) {
-		perror("dup2"); 
+        int outputFD = open(output, O_WRONLY | O_TRUNC | O_CREAT, 0644);
+        if (outputFD == -1) {
+            perror("dup2"); 
+            exit(EXIT_FAILURE);
+        }
+            fdStatus = dup2(outputFD, 1);
+            if (fdStatus == -1) {
+            perror("error: ");
+        }
 	}
-    	fdStatus = dup2(outputFD, 1);
-    	if (fdStatus == -1) {
-	    perror("error: ");
-	}
-	}
-}
-
-void backgroundIO(char *input, char *output, int background) {
-    if(background && output == NULL) {
-        output = "/dev/null";
-    }
-    if(background && input == NULL) {
-        input = "/dev/null";
-    }
 }
 
 void modifyArgsIO(char *cmdArgs[], int length) {
@@ -197,11 +216,13 @@ void forkCmds(char *cmdArgs[], int *pids[], int *exitStatus) {
     //Set up Redirection if needed
     redirect = isRedirect(cmdArgs, length);
     if(redirect){
-        inputFile = getIO(cmdArgs, length, "<");
-        outputFile = getIO(cmdArgs, length, ">");
-	backgroundIO(inputFile, outputFile, bckgrndMode);
-        redirectIO(inputFile, outputFile);
+        inputFile = getIO(cmdArgs, "<");
+        outputFile = getIO(cmdArgs, ">");
         modifyArgsIO(cmdArgs, length);
+    }
+    if(redirect && bckgrndMode){
+        inputFile = backgroundInput(inputFile, bckgrndMode);
+        outputFile = backgroundInput(outputFile, bckgrndMode);
     }
     copyToExec(execArgs, cmdArgs, length);
 
@@ -214,18 +235,20 @@ void forkCmds(char *cmdArgs[], int *pids[], int *exitStatus) {
             break;
         case 0:
             //Childs Process
+            if(redirect)
+                redirectIO(inputFile, outputFile);
             *exitStatus = execvp(execArgs[0], execArgs);
-	    if(*exitStatus == -1){
-	    	perror("execvp: ");
-		exit(EXIT_FAILURE);
-	    }
+            if(*exitStatus == -1){
+                perror("execvp: ");
+                exit(EXIT_FAILURE);
+            }
         default:
             // In the parent process
             if(bckgrndMode){
 	        pids[numOfPids] = &spawnPid;
                 printf("background pid is %d\n", spawnPid);
-                spawnPid = waitpid(spawnPid, &childStatus, WNOHANG);
                 fflush(stdout);
+                spawnPid = waitpid(spawnPid, &childStatus, WNOHANG);
             } 
             else{
                 spawnPid = waitpid(spawnPid, &childStatus, 0);
