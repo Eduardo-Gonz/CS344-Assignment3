@@ -216,81 +216,6 @@ void modifyArgsIO(char *cmdArgs[], int length) {
     }
 }
 
-void handle_SIGINT(int signo) {
-    char message [50];
-    sprintf(message, "terminated by signal %d\n", signo);
-	write(STDOUT_FILENO, message, 50);
-	exit(0);
-}
-
-void forkCmds(char *cmdArgs[], int *pids, int *exitStatus) {
-    int length = findLength(cmdArgs);
-    int numOfPids = findNumOfPids(pids);
-    int bckgrndMode = isBackground(cmdArgs, length);
-    int childStatus, redirect;
-    char *execArgs [length];
-    char *outputFile, *inputFile;
-
-    //Set up Redirection if needed
-    redirect = isRedirect(cmdArgs, length, bckgrndMode);
-    if(redirect){
-        inputFile = getIO(cmdArgs, "<");
-        outputFile = getIO(cmdArgs, ">");
-        modifyArgsIO(cmdArgs, length);
-    }
-    if(redirect && bckgrndMode){
-        inputFile = backgroundInput(inputFile, bckgrndMode);
-        outputFile = backgroundInput(outputFile, bckgrndMode);
-    }
-    copyToExec(execArgs, cmdArgs, length);
-
-    struct sigaction SIGINT_action = {0};
-	// Fork a new process
-	pid_t spawnPid = fork();
-	switch(spawnPid){
-        case -1:
-            perror("fork()\n");
-            exit(1);
-            break;
-        case 0:
-            //Childs Process
-            SIGINT_action.sa_handler = handle_SIGINT; 
-            sigfillset(&SIGINT_action.sa_mask);
-            SIGINT_action.sa_flags = 0;
-            sigaction(SIGINT, &SIGINT_action, NULL);
-            if(redirect)
-                redirectIO(inputFile, outputFile);
-            *exitStatus = execvp(execArgs[0], execArgs);
-            if(*exitStatus == -1){
-                perror("execvp: ");
-                exit(EXIT_FAILURE);
-            }
-        default:
-            // In the parent process
-            if(bckgrndMode){
-	        pids[numOfPids] = spawnPid;
-                printf("background pid is %d\n", spawnPid);
-                fflush(stdout);
-                spawnPid = waitpid(spawnPid, &childStatus, WNOHANG);
-            } 
-            else{
-                spawnPid = waitpid(spawnPid, &childStatus, 0);
-                if(WIFEXITED(childStatus))
-                    *exitStatus = WIFEXITED(childStatus);
-            }
-            break;
-	} 
-    
-}
-
-void clearArgs(char *args[]) {
-    int i = 0;
-    while(args[i] != NULL) {
-        args[i] = NULL;
-        i++;
-    }
-}
-
 void checkProcesses(int *pids) {
     pid_t bgPid = -1;
     int bgExitStatus;
@@ -313,6 +238,79 @@ void checkProcesses(int *pids) {
     }
 }
 
+void clearArgs(char *args[]) {
+    int i = 0;
+    while(args[i] != NULL) {
+        args[i] = NULL;
+        i++;
+    }
+}
+
+void forkCmds(char *cmdArgs[], int *pids, int *exitStatus, struct sigaction SIGINT_action) {
+    int length = findLength(cmdArgs);
+    int numOfPids = findNumOfPids(pids);
+    int bckgrndMode = isBackground(cmdArgs, length);
+    int childStatus, redirect;
+    char *execArgs [length];
+    char *outputFile, *inputFile;
+
+    //Set up Redirection if needed
+    redirect = isRedirect(cmdArgs, length, bckgrndMode);
+    if(redirect){
+        inputFile = getIO(cmdArgs, "<");
+        outputFile = getIO(cmdArgs, ">");
+        modifyArgsIO(cmdArgs, length);
+    }
+    if(redirect && bckgrndMode){
+        inputFile = backgroundInput(inputFile, bckgrndMode);
+        outputFile = backgroundInput(outputFile, bckgrndMode);
+    }
+    copyToExec(execArgs, cmdArgs, length);
+
+    //struct sigaction SIGINT_action = {0};
+	// Fork a new process
+	pid_t spawnPid = fork();
+	switch(spawnPid){
+        case -1:
+            perror("fork()\n");
+            exit(1);
+            break;
+        case 0:
+            //Childs Process
+
+            sigfillset(&SIGINT_action.sa_mask);
+            SIGINT_action.sa_flags = 0;
+            SIGINT_action.sa_handler = SIG_DFL; 
+            sigaction(SIGINT, &SIGINT_action, NULL);
+
+            if(redirect)
+                redirectIO(inputFile, outputFile);
+            *exitStatus = execvp(execArgs[0], execArgs);
+            if(*exitStatus == -1){
+                perror("execvp: ");
+                exit(EXIT_FAILURE);
+            }
+        default:
+            // In the parent process
+            if(bckgrndMode){
+	        pids[numOfPids] = spawnPid;
+                printf("background pid is %d\n", spawnPid);
+                fflush(stdout);
+                spawnPid = waitpid(spawnPid, &childStatus, WNOHANG);
+            } 
+            else{
+                spawnPid = waitpid(spawnPid, &childStatus, 0);
+                if(WIFEXITED(childStatus))
+                    *exitStatus = WIFEXITED(childStatus);
+                if(WTERMSIG(childStatus))
+                    printf("terminated by signal %d\n", WTERMSIG(childStatus));
+                fflush(stdout);
+            }
+            break;
+	} 
+    
+}
+
 void createCmdLine() {
     char cmd [2049];
     char *args [513] = {NULL};
@@ -320,9 +318,13 @@ void createCmdLine() {
     int pidArr [200] = {0};
     int exitStatus = 0;
     // parent
-    struct sigaction ignore_action = {0};
-    ignore_action.sa_handler = SIG_IGN;
-    sigaction(SIGINT, &ignore_action, NULL);
+    // struct sigaction ignore_action = {0};
+    // ignore_action.sa_handler = SIG_IGN;
+    // sigaction(SIGINT, &ignore_action, NULL);
+
+    struct sigaction SIGINT_action = {0};
+    SIGINT_action.sa_handler = SIG_IGN;
+    sigaction(SIGINT, &SIGINT_action, NULL);
 
     do{
         printf(": ");
@@ -337,7 +339,7 @@ void createCmdLine() {
         parseCmd(cmd, args);
 
         if(!isThreeCmds(args, pidArr, &exitStatus)) {
-            forkCmds(args, pidArr, &exitStatus);
+            forkCmds(args, pidArr, &exitStatus, SIGINT_action);
         }
 
         clearArgs(args);
