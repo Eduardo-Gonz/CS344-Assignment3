@@ -99,11 +99,12 @@ int findLength(char *args[]) {
 int findNumOfPids(int *pids[]) {
     int i = 0;
     while(pids[i] != NULL) {
-        i++;
+       printf("pids: %d\n", *pids[i]);
+       i++;
     }
+       
 
-    int length = i - 1;
-    return length; 
+    return i; 
 }
 
 int isBackground(char *cmdArgs[], int lastArg) {
@@ -237,7 +238,7 @@ void forkCmds(char *cmdArgs[], int *pids[], int *exitStatus) {
         default:
             // In the parent process
             if(bckgrndMode){
-	            pids[numOfPids] = &spawnPid;
+	        pids[numOfPids] = &spawnPid;
                 printf("background pid is %d\n", spawnPid);
                 fflush(stdout);
                 spawnPid = waitpid(spawnPid, &childStatus, WNOHANG);
@@ -265,6 +266,7 @@ void checkProcesses(int *pids[]) {
     int bgExitStatus;
     int i = 0;
     while(pids[i] != NULL) {
+       //printf("PID: %d\n", *pids[i]);
         if(waitpid(*pids[i], &bgExitStatus, WNOHANG) > 0) {
             if(WIFSIGNALED(bgExitStatus)) {
                 printf("background pid terminated is %d\n", *pids[i]);
