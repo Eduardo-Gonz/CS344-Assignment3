@@ -56,14 +56,16 @@ void handleCd(char *cmdArgs[]) {
 void exitPrgm(int *pids) {
     int i = 0;
     while(pids[i] != 0) {
-        int killValue = kill(pids[i], SIGTERM);
-        if(killValue == -1 && errno == ESRCH)
-            continue;
-        else{
-            perror("ERROR: ");
-            fflush(stdout);
-            exit(EXIT_FAILURE);
-        }
+        if(pids[i] != -2){
+        int killValue = kill(pids[i], SIGKILL);
+            if(killValue == -1 && errno == ESRCH)
+            	continue;
+       	    else{
+           	 perror("ERROR: ");
+           	 fflush(stdout);
+           	 exit(EXIT_FAILURE);
+       	    }
+	}
         i++;
     }
 
@@ -264,9 +266,8 @@ void checkProcesses(int *pids) {
     pid_t bgPid = -1;
     int bgExitStatus;
     int i = 0;
-    while(pids[i] != 0 && pids[i] != -2) {
-       printf("PID: %d\n", pids[i]);
-        if(waitpid(pids[i], &bgExitStatus, WNOHANG) > 0) {
+    while(pids[i] != 0) {
+        if(pids[i] != -2 && waitpid(pids[i], &bgExitStatus, WNOHANG) > 0) {
             if(WIFSIGNALED(bgExitStatus)) {
                 printf("background pid terminated is %d\n", pids[i]);
                 fflush(stdout);
@@ -277,7 +278,7 @@ void checkProcesses(int *pids) {
               printf("exit value %d\n", WEXITSTATUS(bgExitStatus));
               fflush(stdout);
             }
-            pids[i] = -2;
+           pids[i] = -2;
         }
         i++;
     }
