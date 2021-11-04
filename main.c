@@ -22,6 +22,23 @@ int ignoreCmd(char *usrCmd) {
     return 0;
 }
 
+void expandVar(char *cmd) {
+    char buffer[100] = {"\0"};
+    char *p = cmd;
+    pid_t pid = getpid();
+    char replace [2049];
+    sprintf(replace, "%d", pid);
+
+    while ((p = strstr(p, "$$"))) {
+        strncpy(buffer, cmd, p - cmd);
+        strcat(buffer, replace);
+        strcat(buffer, p+strlen("$$"));
+        strcpy(cmd, buffer);
+        p++;
+    }
+  
+}
+
 void parseCmd(char *usrCmd, char *cmdArgs[]) {
     char *token;
     char *savePtr = usrCmd;
@@ -296,6 +313,7 @@ void createCmdLine() {
         fgets(cmd, 2049, stdin);
         fflush(stdout);
 
+        expandVar(cmd);
         //check for blank lines or comments
         if(ignoreCmd(cmd))
             continue;
