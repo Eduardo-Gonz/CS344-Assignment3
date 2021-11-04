@@ -53,10 +53,10 @@ void handleCd(char *cmdArgs[]) {
     changeDir(path);
 }
 
-void exitPrgm(int *pids[]) {
+void exitPrgm(int *pids) {
     int i = 0;
-    while(pids[i] != NULL) {
-        int killValue = kill(*pids[i], SIGTERM);
+    while(pids[i] != 0) {
+        int killValue = kill(pids[i], SIGTERM);
         if(killValue == -1 && errno == ESRCH)
             continue;
         else{
@@ -75,7 +75,7 @@ void showStatus(int *status) {
     fflush(stdout);
 }
 
-int isThreeCmds(char *cmdArgs[], int *pids[], int *exitStatus) {
+int isThreeCmds(char *cmdArgs[], int *pids, int *exitStatus) {
     if(strcmp(cmdArgs[0], "cd") == 0)
         handleCd(cmdArgs);
     else if(strcmp(cmdArgs[0], "status") == 0)
@@ -96,10 +96,9 @@ int findLength(char *args[]) {
     return length; 
 }
 
-int findNumOfPids(int *pids[]) {
+int findNumOfPids(int *pids) {
     int i = 0;
-    while(pids[i] != NULL) {
-       printf("pids: %d\n", *pids[i]);
+    while(pids[i] != 0) {
        i++;
     }
        
@@ -198,7 +197,7 @@ void modifyArgsIO(char *cmdArgs[], int length) {
     }
 }
 
-void forkCmds(char *cmdArgs[], int *pids[], int *exitStatus) {
+void forkCmds(char *cmdArgs[], int *pids, int *exitStatus) {
     int length = findLength(cmdArgs);
     int numOfPids = findNumOfPids(pids);
     int bckgrndMode = isBackground(cmdArgs, length);
@@ -238,7 +237,7 @@ void forkCmds(char *cmdArgs[], int *pids[], int *exitStatus) {
         default:
             // In the parent process
             if(bckgrndMode){
-	        pids[numOfPids] = &spawnPid;
+	        pids[numOfPids] = spawnPid;
                 printf("background pid is %d\n", spawnPid);
                 fflush(stdout);
                 spawnPid = waitpid(spawnPid, &childStatus, WNOHANG);
@@ -261,15 +260,15 @@ void clearArgs(char *args[]) {
     }
 }
 
-void checkProcesses(int *pids[]) {
+void checkProcesses(int *pids) {
     pid_t bgPid = -1;
     int bgExitStatus;
     int i = 0;
-    while(pids[i] != NULL) {
-       //printf("PID: %d\n", *pids[i]);
-        if(waitpid(*pids[i], &bgExitStatus, WNOHANG) > 0) {
+    while(pids[i] != 0 && pids[i] != -2) {
+       printf("PID: %d\n", pids[i]);
+        if(waitpid(pids[i], &bgExitStatus, WNOHANG) > 0) {
             if(WIFSIGNALED(bgExitStatus)) {
-                printf("background pid terminated is %d\n", *pids[i]);
+                printf("background pid terminated is %d\n", pids[i]);
                 fflush(stdout);
                 printf("terminated by signal %d\n", WTERMSIG(bgExitStatus));
                 fflush(stdout);
@@ -278,6 +277,7 @@ void checkProcesses(int *pids[]) {
               printf("exit value %d\n", WEXITSTATUS(bgExitStatus));
               fflush(stdout);
             }
+            pids[i] = -2;
         }
         i++;
     }
@@ -287,7 +287,7 @@ void createCmdLine() {
     char cmd [2049];
     char *args [513] = {NULL};
     int exit = 0;
-    int *pidArr [200] = {NULL};
+    int pidArr [200] = {0};
     int exitStatus = 0;
 
     do{
