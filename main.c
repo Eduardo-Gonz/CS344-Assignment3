@@ -13,15 +13,19 @@
 
 int foregroundMode = -1;
 
-int ignoreCmd(char *usrCmd) {
-    char firstChar = usrCmd[0];
-    if(firstChar == '#' || strcmp(usrCmd, "\n") == 0){
-        //printf("Sorry, blank lines and comments are ignored\n");
-        //fflush(stdout);
-        return 1;
+void handle_SIGTSTP() {
+    if(foregroundMode == -1){
+        char *message = "Entering foreground-only mode (& is now ignored)\n";
+        write(STDOUT_FILENO, message, strlen(message));
+        fflush(stdout);
+        foregroundMode = 1;
     }
-    
-    return 0;
+    else{
+        char *message = "Exitingforeground-only mode\n";
+        write(STDOUT_FILENO, message, strlen(message));
+        fflush(stdout);
+        foregroundMode = 1;       
+    }
 }
 
 void expandVar(char *cmd) {
@@ -41,6 +45,17 @@ void expandVar(char *cmd) {
   
 }
 
+int ignoreCmd(char *usrCmd) {
+    char firstChar = usrCmd[0];
+    if(firstChar == '#' || strcmp(usrCmd, "\n") == 0){
+        //printf("Sorry, blank lines and comments are ignored\n");
+        //fflush(stdout);
+        return 1;
+    }
+    
+    return 0;
+}
+
 void parseCmd(char *usrCmd, char *cmdArgs[]) {
     char *token;
     char *savePtr = usrCmd;
@@ -53,6 +68,24 @@ void parseCmd(char *usrCmd, char *cmdArgs[]) {
         cmdArgs[i] = token;
         i++;
     }
+}
+
+int findLength(char *args[]) {
+    int i = 0;
+    while(args[i] != NULL) {
+        i++;
+    }
+    int length = i;
+    return length; 
+}
+
+int findNumOfPids(int *pids) {
+    int i = 0;
+    while(pids[i] != 0) {
+       i++;
+    }
+       
+    return i; 
 }
 
 void changeDir(char *dirPath) {
@@ -108,23 +141,19 @@ int isThreeCmds(char *cmdArgs[], int *pids, int *exitStatus) {
     return 1;
 }
 
-int findLength(char *args[]) {
+void clearArgs(char *args[]) {
     int i = 0;
     while(args[i] != NULL) {
+        args[i] = NULL;
         i++;
     }
-    int length = i;
-    return length; 
 }
 
-int findNumOfPids(int *pids) {
-    int i = 0;
-    while(pids[i] != 0) {
-       i++;
+void copyToExec(char *execArgs[], char *cmdArgs[], int length) {
+    for(int i = 0; i < length; i++) {
+        execArgs[i] = cmdArgs[i];
     }
-       
-
-    return i; 
+    execArgs[length] = NULL;
 }
 
 int isBackground(char *cmdArgs[], int lastArg) {
@@ -137,11 +166,20 @@ int isBackground(char *cmdArgs[], int lastArg) {
     return 0;
 }
 
-void copyToExec(char *execArgs[], char *cmdArgs[], int length) {
-    for(int i = 0; i < length; i++) {
-        execArgs[i] = cmdArgs[i];
-    }
-    execArgs[length] = NULL;
+char * backgroundInput(char *input, int background) {
+    char *defaultName = "/dev/null";
+    if(background && input == NULL)
+        return defaultName;
+
+    return NULL;
+}
+
+char * backgroundOutput(char *output, int background) {
+    char *defaultName = "/dev/null";
+    if(background && output == NULL)
+        return defaultName;
+
+    return NULL;
 }
 
 int isRedirect(char *cmdArgs[], int length, int background) {
@@ -163,21 +201,6 @@ char * getIO(char *cmdArgs[], char *symbol) {
 	    }
         i++;
     }
-
-    return NULL;
-}
-
-char * backgroundInput(char *input, int background) {
-    char *defaultName = "/dev/null";
-    if(background && input == NULL)
-        return defaultName;
-
-    return NULL;
-}
-char * backgroundOutput(char *output, int background) {
-    char *defaultName = "/dev/null";
-    if(background && output == NULL)
-        return defaultName;
 
     return NULL;
 }
@@ -236,14 +259,6 @@ void checkProcesses(int *pids) {
             }
            pids[i] = -2;
         }
-        i++;
-    }
-}
-
-void clearArgs(char *args[]) {
-    int i = 0;
-    while(args[i] != NULL) {
-        args[i] = NULL;
         i++;
     }
 }
@@ -317,21 +332,6 @@ void forkCmds(char *cmdArgs[], int *pids, int *exitStatus, struct sigaction SIGI
             break;
 	} 
     
-}
-
-void handle_SIGTSTP() {
-    if(foregroundMode == -1){
-        char *message = "Entering foreground-only mode (& is now ignored)\n";
-        write(STDOUT_FILENO, message, strlen(message));
-        fflush(stdout);
-        foregroundMode = 1;
-    }
-    else{
-        char *message = "Exitingforeground-only mode\n";
-        write(STDOUT_FILENO, message, strlen(message));
-        fflush(stdout);
-        foregroundMode = 1;       
-    }
 }
 
 void createCmdLine() {
