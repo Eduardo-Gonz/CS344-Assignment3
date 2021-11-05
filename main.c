@@ -16,8 +16,8 @@ int foregroundMode = -1;
 int ignoreCmd(char *usrCmd) {
     char firstChar = usrCmd[0];
     if(firstChar == '#' || strcmp(usrCmd, "\n") == 0){
-        printf("Sorry, blank lines and comments are ignored\n");
-        fflush(stdout);
+        //printf("Sorry, blank lines and comments are ignored\n");
+        //fflush(stdout);
         return 1;
     }
     
@@ -231,7 +231,7 @@ void checkProcesses(int *pids) {
                 fflush(stdout);
             }
             if(WIFEXITED(bgExitStatus)){
-              printf("exit value %d\n", WEXITSTATUS(bgExitStatus));
+              printf("background pid %d is done: exit value %d\n", pids[i], WEXITSTATUS(bgExitStatus));
               fflush(stdout);
             }
            pids[i] = -2;
