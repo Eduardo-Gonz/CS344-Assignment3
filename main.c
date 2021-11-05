@@ -11,8 +11,20 @@
 #include <fcntl.h>
 #include <errno.h>
 
+/*
+ * Specifies whether program is in foreground mode or not.
+ * --------------------
+ *       1 -> foreground mode activated
+ *      -1 -> NOT in foreground mode and 1 
+ */
 int foregroundMode = -1;
 
+/*
+ * Function: handle_SIGTSTP()
+ * --------------------
+ * Enters or exits foreground mode when ctr^z is entered.
+ *
+ */
 void handle_SIGTSTP() {
     if(foregroundMode == -1){
         char *message = "Entering foreground-only mode (& is now ignored)\n";
@@ -28,6 +40,12 @@ void handle_SIGTSTP() {
     }
 }
 
+/*
+ * expandVar(char *cmd)
+ * --------------------
+ * Parses through command and replaces all instances of '$$' with pid of parent process.
+ *
+ */
 void expandVar(char *cmd) {
     char buffer[100] = {"\0"};
     char *p = cmd;
@@ -45,17 +63,28 @@ void expandVar(char *cmd) {
   
 }
 
+/*
+ * ignoreCmd(char *usrCmd)
+ * --------------------
+ * Checks if command starts with '#' or if its a blank line. Returns 1 if true and 0 if false.
+ * If true then the command is ignored.
+ *
+ */
 int ignoreCmd(char *usrCmd) {
     char firstChar = usrCmd[0];
     if(firstChar == '#' || strcmp(usrCmd, "\n") == 0){
-        //printf("Sorry, blank lines and comments are ignored\n");
-        //fflush(stdout);
         return 1;
     }
     
     return 0;
 }
 
+/*
+ * parseCmd(char *usrCmd, char *cmdArgs[])
+ * --------------------
+ * Parses the command and splits up each argument and stores them in an array.
+ *
+ */
 void parseCmd(char *usrCmd, char *cmdArgs[]) {
     char *token;
     char *savePtr = usrCmd;
@@ -70,6 +99,12 @@ void parseCmd(char *usrCmd, char *cmdArgs[]) {
     }
 }
 
+/*
+ * findLength(char *args[])
+ * --------------------
+ * Finds length of the argument array.
+ *
+ */
 int findLength(char *args[]) {
     int i = 0;
     while(args[i] != NULL) {
@@ -79,6 +114,12 @@ int findLength(char *args[]) {
     return length; 
 }
 
+/*
+ * findNumOfPids(int *pids)
+ * --------------------
+ * Finds the number of background pids
+ *
+ */
 int findNumOfPids(int *pids) {
     int i = 0;
     while(pids[i] != 0) {
@@ -88,6 +129,12 @@ int findNumOfPids(int *pids) {
     return i; 
 }
 
+/*
+ * changeDir(char *dirPath)
+ * --------------------
+ * Changes directory when 'cd' command is entered
+ *
+ */
 void changeDir(char *dirPath) {
     if(chdir(dirPath) == -1){
         perror("Error: ");
@@ -95,6 +142,12 @@ void changeDir(char *dirPath) {
     }
 }
 
+/*
+ * handleCd(char *cmdArgs[])
+ * --------------------
+ * Grabs the 'cd' and its arguments and calls changeDir()
+ *
+ */
 void handleCd(char *cmdArgs[]) {
     char *path;
     if(cmdArgs[1] == NULL)
@@ -105,6 +158,12 @@ void handleCd(char *cmdArgs[]) {
     changeDir(path);
 }
 
+/*
+ * exitPrgm(int *pids)
+ * --------------------
+ * Exits the program and kills any remaining background processes
+ *
+ */
 void exitPrgm(int *pids) {
     int i = 0;
     while(pids[i] != 0) {
@@ -124,11 +183,23 @@ void exitPrgm(int *pids) {
     exit(EXIT_SUCCESS);
 }
 
+/*
+ * showStatus(int *status)
+ * --------------------
+ * Shows the exit status of the last foreground process ran.
+ *
+ */
 void showStatus(int *status) {
     printf("exit value %d\n", *status);
     fflush(stdout);
 }
 
+/*
+ * isThreeCmds(char *cmdArgs[], int *pids, int *exitStatus)
+ * --------------------
+ * Checks if command is 'cd', 'status' or 'exit' and calls the appropriate functions to handle the commands if true.
+ *
+ */
 int isThreeCmds(char *cmdArgs[], int *pids, int *exitStatus) {
     if(strcmp(cmdArgs[0], "cd") == 0)
         handleCd(cmdArgs);
@@ -141,6 +212,12 @@ int isThreeCmds(char *cmdArgs[], int *pids, int *exitStatus) {
     return 1;
 }
 
+/*
+ * clearArgs(char *args[])
+ * --------------------
+ * All arguments are removed from the argument array to have it clean and ready for next command.
+ *
+ */
 void clearArgs(char *args[]) {
     int i = 0;
     while(args[i] != NULL) {
@@ -149,6 +226,12 @@ void clearArgs(char *args[]) {
     }
 }
 
+/*
+ * copyToExec(char *execArgs[], char *cmdArgs[], int length)
+ * --------------------
+ * Copies arguments of a command into execArgs[] to be used in execvp()
+ *
+ */
 void copyToExec(char *execArgs[], char *cmdArgs[], int length) {
     for(int i = 0; i < length; i++) {
         execArgs[i] = cmdArgs[i];
@@ -156,6 +239,13 @@ void copyToExec(char *execArgs[], char *cmdArgs[], int length) {
     execArgs[length] = NULL;
 }
 
+/*
+ * isBackground(char *cmdArgs[], int lastArg)
+ * --------------------
+ * Checks if command contains '&' at the end.
+ * Returns 1 if true and 0 if false
+ *
+ */
 int isBackground(char *cmdArgs[], int lastArg) {
     lastArg--;
     if(strcmp(cmdArgs[lastArg], "&") == 0){
@@ -166,6 +256,12 @@ int isBackground(char *cmdArgs[], int lastArg) {
     return 0;
 }
 
+/*
+ * backgroundInput(char *input, int background)
+ * --------------------
+ * Sets input file path to '/dev/null' if IO redirection is requied, background mode enabled, and no input specified.
+ *
+ */
 char * backgroundInput(char *input, int background) {
     char *defaultName = "/dev/null";
     if(background && input == NULL)
@@ -174,6 +270,12 @@ char * backgroundInput(char *input, int background) {
     return NULL;
 }
 
+/*
+ * backgroundOutput(char *input, int background)
+ * --------------------
+ * Sets output file path to '/dev/null' if IO redirection is requied, background mode enabled, and no output specified.
+ *
+ */
 char * backgroundOutput(char *output, int background) {
     char *defaultName = "/dev/null";
     if(background && output == NULL)
@@ -182,6 +284,13 @@ char * backgroundOutput(char *output, int background) {
     return NULL;
 }
 
+/*
+ * isRedirect(char *cmdArgs[], int length, int background)
+ * --------------------
+ * Loops through argument array to determine whether or not file redirection will be needed.
+ * Returns 1 if true and 0 if false.
+ *
+ */
 int isRedirect(char *cmdArgs[], int length, int background) {
     if(background)
         length--;
@@ -193,6 +302,13 @@ int isRedirect(char *cmdArgs[], int length, int background) {
     return 0;
 }
 
+/*
+ * getIO(char *cmdArgs[], char *symbol)
+ * --------------------
+ * Returns input or output needed for IO redirection.
+ * 
+ * 
+ */
 char * getIO(char *cmdArgs[], char *symbol) {
     int i = 0; 
     while(cmdArgs[i] != NULL) {
@@ -205,6 +321,13 @@ char * getIO(char *cmdArgs[], char *symbol) {
     return NULL;
 }
 
+/*
+ * redirectIO(char *input, char*output)
+ * --------------------
+ * Redirects stdin and stdout.
+ * 
+ * 
+ */
 void redirectIO(char *input, char*output){
    	int fdStatus;
     //use dup2 to redirect input
@@ -235,17 +358,32 @@ void redirectIO(char *input, char*output){
 	}
 }
 
+/*
+ * modifyArgsIO(char *cmdArgs[], int length)
+ * --------------------
+ * All arguments are removed from the argument array except for the initial command.
+ * ex: [ls, >, junk] ==> [ls]
+ * Note: only used if IO redirection is needed.
+ *
+ */
 void modifyArgsIO(char *cmdArgs[], int length) {
     for(int i = 1; i < length; i++) {
         cmdArgs[i] = NULL;
     }
 }
 
+/*
+ * checkProcesses(int *pids)
+ * --------------------
+ * Loops through array of background pids and prints exit status if a background process is done.
+ *
+ */
 void checkProcesses(int *pids) {
     pid_t bgPid = -1;
     int bgExitStatus;
     int i = 0;
     while(pids[i] != 0) {
+
         if(pids[i] != -2 && waitpid(pids[i], &bgExitStatus, WNOHANG) > 0) {
             if(WIFSIGNALED(bgExitStatus)) {
                 printf("background pid terminated is %d\n", pids[i]);
@@ -257,12 +395,20 @@ void checkProcesses(int *pids) {
               printf("background pid %d is done: exit value %d\n", pids[i], WEXITSTATUS(bgExitStatus));
               fflush(stdout);
             }
+
+            //set completed processes to -2
            pids[i] = -2;
         }
         i++;
     }
 }
 
+/*
+ * forkCmds(char *cmdArgs[], int *pids, int *exitStatus, struct sigaction SIGINT_action, struct sigaction SIGTSTP_action)
+ * --------------------
+ * Handles all other commands that are not 'cd', 'exit', or 'status' by forking a new process and callinge execvp().
+ *
+ */
 void forkCmds(char *cmdArgs[], int *pids, int *exitStatus, struct sigaction SIGINT_action, struct sigaction SIGTSTP_action) {
     int length = findLength(cmdArgs);
     int numOfPids = findNumOfPids(pids);
@@ -282,9 +428,10 @@ void forkCmds(char *cmdArgs[], int *pids, int *exitStatus, struct sigaction SIGI
         inputFile = backgroundInput(inputFile, bckgrndMode);
         outputFile = backgroundInput(outputFile, bckgrndMode);
     }
+
+    //execArgs will only the arguments
     copyToExec(execArgs, cmdArgs, length);
 
-    //struct sigaction SIGINT_action = {0};
 	// Fork a new process
 	pid_t spawnPid = fork();
 	switch(spawnPid){
@@ -295,6 +442,7 @@ void forkCmds(char *cmdArgs[], int *pids, int *exitStatus, struct sigaction SIGI
         case 0:
             //Childs Process
 
+            //Reset signal handlers for child
             sigfillset(&SIGINT_action.sa_mask);
             SIGINT_action.sa_flags = 0;
             SIGINT_action.sa_handler = SIG_DFL; 
@@ -313,15 +461,18 @@ void forkCmds(char *cmdArgs[], int *pids, int *exitStatus, struct sigaction SIGI
                 perror("execvp: ");
                 exit(EXIT_FAILURE);
             }
+            break;
         default:
             // In the parent process
             if(bckgrndMode && foregroundMode == -1){
-	        pids[numOfPids] = spawnPid;
+	            pids[numOfPids] = spawnPid;
                 printf("background pid is %d\n", spawnPid);
                 fflush(stdout);
+                //do not wait for child in background
                 spawnPid = waitpid(spawnPid, &childStatus, WNOHANG);
             } 
             else{
+                //wait for child to finish in foreground
                 spawnPid = waitpid(spawnPid, &childStatus, 0);
                 if(WIFEXITED(childStatus))
                     *exitStatus = WIFEXITED(childStatus);
@@ -334,14 +485,20 @@ void forkCmds(char *cmdArgs[], int *pids, int *exitStatus, struct sigaction SIGI
     
 }
 
+/*
+ * createCmdLine()
+ * --------------------
+ * Runs the command line and promps user for commands.
+ *
+ */
 void createCmdLine() {
     char cmd [2049];
     char *args [513] = {NULL};
     int exit = 0;
     int pidArr [200] = {0};
     int exitStatus = 0;
-    // parent
 
+    //Set up signal handlers
     struct sigaction SIGINT_action = {0}, SIGTSTP_action = {0};
 
     SIGINT_action.sa_flags = 0;
@@ -360,6 +517,7 @@ void createCmdLine() {
         fflush(stdout);
 
         expandVar(cmd);
+
         //check for blank lines or comments
         if(ignoreCmd(cmd))
             continue;
