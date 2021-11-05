@@ -11,6 +11,8 @@
 #include <fcntl.h>
 #include <errno.h>
 
+int foregroundMode = -1;
+
 int ignoreCmd(char *usrCmd) {
     char firstChar = usrCmd[0];
     if(firstChar == '#' || strcmp(usrCmd, "\n") == 0){
@@ -246,7 +248,7 @@ void clearArgs(char *args[]) {
     }
 }
 
-void forkCmds(char *cmdArgs[], int *pids, int *exitStatus, struct sigaction SIGINT_action) {
+void forkCmds(char *cmdArgs[], int *pids, int *exitStatus, struct sigaction SIGINT_action, struct sigaction SIGTSTP_action) {
     int length = findLength(cmdArgs);
     int numOfPids = findNumOfPids(pids);
     int bckgrndMode = isBackground(cmdArgs, length);
@@ -281,7 +283,13 @@ void forkCmds(char *cmdArgs[], int *pids, int *exitStatus, struct sigaction SIGI
             sigfillset(&SIGINT_action.sa_mask);
             SIGINT_action.sa_flags = 0;
             SIGINT_action.sa_handler = SIG_DFL; 
+
+            sigfillset(&SIGTSTP_action.sa_mask);
+            SIGTSTP_action.sa_flags = 0;
+            SIGTSTP_action.sa_handler = SIG_IGN;
+
             sigaction(SIGINT, &SIGINT_action, NULL);
+            sigaction(SIGTSTP, &SIGTSTP_action, NULL);
 
             if(redirect)
                 redirectIO(inputFile, outputFile);
@@ -292,7 +300,7 @@ void forkCmds(char *cmdArgs[], int *pids, int *exitStatus, struct sigaction SIGI
             }
         default:
             // In the parent process
-            if(bckgrndMode){
+            if(bckgrndMode && foregroundMode == -1){
 	        pids[numOfPids] = spawnPid;
                 printf("background pid is %d\n", spawnPid);
                 fflush(stdout);
@@ -311,6 +319,21 @@ void forkCmds(char *cmdArgs[], int *pids, int *exitStatus, struct sigaction SIGI
     
 }
 
+void handle_SIGTSTP() {
+    if(foregroundMode == -1){
+        char *message = "Entering foreground-only mode (& is now ignored)\n";
+        write(STDOUT_FILENO, message, strlen(message));
+        fflush(stdout);
+        foregroundMode = 1;
+    }
+    else{
+        char *message = "Exitingforeground-only mode\n";
+        write(STDOUT_FILENO, message, strlen(message));
+        fflush(stdout);
+        foregroundMode = 1;       
+    }
+}
+
 void createCmdLine() {
     char cmd [2049];
     char *args [513] = {NULL};
@@ -318,13 +341,18 @@ void createCmdLine() {
     int pidArr [200] = {0};
     int exitStatus = 0;
     // parent
-    // struct sigaction ignore_action = {0};
-    // ignore_action.sa_handler = SIG_IGN;
-    // sigaction(SIGINT, &ignore_action, NULL);
 
-    struct sigaction SIGINT_action = {0};
+    struct sigaction SIGINT_action = {0}, SIGTSTP_action = {0};
+
+    SIGINT_action.sa_flags = 0;
     SIGINT_action.sa_handler = SIG_IGN;
+    sigfillset(&SIGINT_action.sa_mask);
     sigaction(SIGINT, &SIGINT_action, NULL);
+
+    sigfillset(&SIGTSTP_action.sa_mask);
+    SIGTSTP_action.sa_flags = SA_RESTART;
+    SIGTSTP_action.sa_handler = handle_SIGTSTP;
+    sigaction(SIGTSTP, &SIGTSTP_action, NULL);
 
     do{
         printf(": ");
@@ -339,7 +367,7 @@ void createCmdLine() {
         parseCmd(cmd, args);
 
         if(!isThreeCmds(args, pidArr, &exitStatus)) {
-            forkCmds(args, pidArr, &exitStatus, SIGINT_action);
+            forkCmds(args, pidArr, &exitStatus, SIGINT_action, SIGTSTP_action);
         }
 
         clearArgs(args);
